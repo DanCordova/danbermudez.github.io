@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Itinerario de Viaje - Dan Bermudez</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <style>
+        /* === ESTILOS (idénticos a tu versión) === */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 2rem 0;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            color: #666;
+            opacity: 0.8;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 2rem;
+            height: calc(100vh - 140px);
+        }
+
+        .sidebar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #667eea transparent;
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 10px;
+        }
+
+        .trip-selector {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .trip-btn {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .trip-btn.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .day-section {
+            margin-bottom: 1.5rem;
+            opacity: 0;
+            animation: fadeInUp 0.5s ease forwards;
+        }
+
+        .day-header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .event-item {
+            background: rgba(255, 255, 255, 0.8);
+            margin: 0.5rem 0;
+            padding: 1rem;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        .event-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.2);
+            background: rgba(255, 255, 255, 0.95);
+        }
+
+        .event-item.active {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            border-left-color: #764ba2;
+            transform: translateX(5px);
+        }
+
+        .event-time {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 0.9rem;
+        }
+
+        .event-title {
+            font-weight: 500;
+            margin-top: 0.25rem;
+            color: #333;
+        }
+
+        .map-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            position: relative;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+
+        .map-overlay {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem;
+            border-radius: 12px;
+            z-index: 1000;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            max-width: 300px;
+        }
+
+        .event-details h3 {
+            color: #667eea;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .event-details p {
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .current-event {
+            animation: pulse 2s infinite;
+        }
+
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: 400px 1fr;
+                height: auto;
+            }
+
+            .sidebar {
+                max-height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>✈️ Itinerario de Viaje</h1>
+        <p>Dan Bermudez - Septiembre 2025</p>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <div class="trip-selector">
+                <button class="trip-btn active" data-trip="trip1">Francia/Suiza</button>
+                <button class="trip-btn" data-trip="trip2">Alemania/Suiza</button>
+            </div>
+            <div id="events-container"></div>
+        </div>
+        <div class="map-container">
+            <div id="map"></div>
+            <div class="map-overlay" id="event-details" style="display: none;">
+                <div class="event-details">
+                    <h3 id="detail-title"></h3>
+                    <p id="detail-time"></p>
+                    <p id="detail-description"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    const trips = {
+        trip1: {
+            name: "Francia/Suiza",
+            center: [48.8566, 2.3522],
+            zoom: 6,
+            days: {
+                "Jueves 11 Sept": [
+                    { time: "8:00-9:45", title: "Vuelo Frankfurt-París", coords: [50.1109, 8.6821], description: "Salida desde Frankfurt" },
+                    { time: "9:45-10:15", title: "Desayuno Aeropuerto", coords: [49.0097, 2.5479], description: "Charles de Gaulle" },
+                    { time: "10:15-11:24", title: "Metro/RER al centro", coords: [48.8566, 2.3522], description: "Traslado a París centro" },
+                    { time: "11:45-12:45", title: "Descanso", coords: [48.8566, 2.3522], description: "Llegada al hotel" },
+                    { time: "12:45-13:45", title: "Camino a las Tullerías", coords: [48.8634, 2.3265], description: "Jardines de las Tullerías" },
+                    { time: "13:45-14:45", title: "Petit Palais (Café)", coords: [48.8662, 2.3142], description: "Museo y café" },
+                    { time: "14:45-15:15", title: "Caminar Campos Elíseos", coords: [48.8698, 2.3076], description: "Avenue des Champs-Élysées" },
+                    { time: "15:15-16:45", title: "Comida", coords: [48.8698, 2.3076], description: "Almuerzo en Champs-Élysées" },
+                    { time: "16:45-18:30", title: "Arco del Triunfo", coords: [48.8738, 2.2950], description: "Arc de Triomphe" },
+                    { time: "18:30-19:15", title: "Metro a Trocadéro", coords: [48.8632, 2.2883], description: "Traslado" },
+                    { time: "19:15-20:30", title: "Camino a la Torre Eiffel", coords: [48.8584, 2.2945], description: "Tour Eiffel" },
+                    { time: "20:30-21:30", title: "Cena Torre Eiffel", coords: [48.8584, 2.2945], description: "Cena con vista" }
+                ],
+                "Viernes 12 Sept": [
+                    { time: "8:30-9:45", title: "Desayuno Hotel", coords: [48.8566, 2.3522], description: "Desayuno en el hotel" },
+                    { time: "10:00-11:00", title: "Madeleine Les Invalides RER", coords: [48.8698, 2.3245], description: "Traslado en RER" },
+                    { time: "11:00-14:15", title: "Museo D'Orsay", coords: [48.8600, 2.3266], description: "Museo de arte impresionista" },
+                    { time: "14:15-15:15", title: "Comida Louvre", coords: [48.8606, 2.3376], description: "Almuerzo cerca del Louvre" },
+                    { time: "15:15-17:45", title: "Montmartre", coords: [48.8867, 2.3431], description: "Barrio artístico" },
+                    { time: "17:45-20:00", title: "Montmartre", coords: [48.8867, 2.3431], description: "Sacré-Cœur y alrededores" },
+                    { time: "20:00-21:00", title: "Cena Barrio Latino", coords: [48.8503, 2.3459], description: "Quartier Latin" },
+                    { time: "21:00-22:00", title: "Cena Montmartre", coords: [48.8867, 2.3431], description: "Segunda cena en Montmartre" }
+                ],
+                "Sábado 13 Sept": [
+                    { time: "8:30-9:45", title: "Desayuno Hotel", coords: [48.8566, 2.3522], description: "Desayuno en el hotel" },
+                    { time: "10:39-11:24", title: "RER Chatelet", coords: [48.8583, 2.3447], description: "Estación Chatelet" },
+                    { time: "11:00-14:15", title: "Palacio de Versalles", coords: [48.8049, 2.1204], description: "Château de Versailles" },
+                    { time: "14:15-15:15", title: "Comida Versalles", coords: [48.8049, 2.1204], description: "Almuerzo en Versalles" },
+                    { time: "15:15-17:00", title: "Jardines", coords: [48.8049, 2.1204], description: "Jardines de Versalles" },
+                    { time: "17:00-18:15", title: "RER C Versalles - Notre Dame", coords: [48.8530, 2.3499], description: "Regreso a París" },
+                    { time: "18:15-20:00", title: "Notre Dame", coords: [48.8530, 2.3499], description: "Catedral de Notre-Dame" },
+                    { time: "20:00-21:00", title: "Cena", coords: [48.8530, 2.3499], description: "Cena cerca de Notre-Dame" }
+                ],
+                "Domingo 14 Sept": [
+                    { time: "8:30-9:45", title: "Desayuno Hotel", coords: [48.8566, 2.3522], description: "Desayuno en el hotel" },
+                    { time: "12:00-12:30", title: "Panadería", coords: [48.8566, 2.3522], description: "Panadería más antigua de París" },
+                    { time: "12:30-13:30", title: "Chatelet", coords: [48.8583, 2.3447], description: "Zona Chatelet" },
+                    { time: "19:30-20:30", title: "Sandwich", coords: [48.8566, 2.3522], description: "Cena ligera" },
+                    { time: "20:30-22:00", title: "IR St Gallo", coords: [47.4245, 9.3767], description: "Viaje nocturno a St. Gallen" }
+                ],
+                "Lunes 15 Sept": [
+                    { time: "8:30-9:45", title: "Desayuno Hotel", coords: [47.4245, 9.3767], description: "St. Gallen, Suiza" },
+                    { time: "9:45-10:30", title: "Checkout", coords: [47.4245, 9.3767], description: "Salida del hotel" },
+                    { time: "11:00-14:15", title: "Centro St Gallo", coords: [47.4245, 9.3767], description: "Centro histórico de St. Gallen" },
+                    { time: "14:15-15:00", title: "Comida", coords: [47.4245, 9.3767], description: "Almuerzo en St. Gallen" },
+                    { time: "15:30-16:30", title: "Vuelo Zurich", coords: [47.4647, 8.5492], description: "Aeropuerto de Zurich" },
+                    { time: "16:30-17:15", title: "Zurich Hbf", coords: [47.3779, 8.5403], description: "Estación central" },
+                    { time: "17:15-18:00", title: "Café Felix", coords: [47.3779, 8.5403], description: "Café en Zurich" },
+                    { time: "18:00-19:30", title: "Lindenhof Centro", coords: [47.3728, 8.5410], description: "Colina Lindenhof" }
+                ]
+            }
+        },
+        trip2: {
+            name: "Alemania/Suiza",
+            center: [49.4521, 8.0080],
+            zoom: 7,
+            days: {
+                "Martes 16 Sept": [
+                    { time: "8:30-9:45", title: "Desayuno Hotel", coords: [47.4245, 9.3767], description: "St. Gallen" },
+                    { time: "10:30-11:15", title: "Alpenzell Tren", coords: [47.3312, 9.4091], description: "Viaje a Appenzell" },
+                    { time: "11:15-13:45", title: "Alpenzell Centro", coords: [47.3312, 9.4091], description: "Centro de Appenzell" },
+                    { time: "13:45-14:30", title: "Wasserauen Alpes Tren", coords: [47.2992, 9.4403], description: "Estación de montaña" },
+                    { time: "14:30-15:15", title: "Comida Wasserauen", coords: [47.2992, 9.4403], description: "Almuerzo en los Alpes" },
+                    { time: "15:15-18:15", title: "Caminata Alpes", coords: [47.2992, 9.4403], description: "Senderismo en los Alpes" },
+                    { time: "18:15-19:00", title: "Regreso St Gallo Tren", coords: [47.4245, 9.3767], description: "Vuelta a St. Gallen" },
+                    { time: "20:00-21:00", title: "Cena", coords: [47.4245, 9.3767], description: "Cena en St. Gallen" }
+                ],
+                "Miércoles 17 Sept": [
+                    { time: "9:00-9:30", title: "Checkout", coords: [47.4245, 9.3767], description: "Salida de St. Gallen" },
+                    { time: "9:30-10:00", title: "Camion Mainau", coords: [47.7032, 9.1948], description: "Isla Mainau" },
+                    { time: "10:00-12:30", title: "Isla Mainau", coords: [47.7032, 9.1948], description: "Jardín botánico" },
+                    { time: "12:30-13:30", title: "Comida Mainau", coords: [47.7032, 9.1948], description: "Almuerzo en la isla" },
+                    { time: "16:30-17:30", title: "Konstanz Tren", coords: [47.6779, 9.1732], description: "Ciudad de Konstanz" },
+                    { time: "18:30-20:00", title: "Caminata Centro", coords: [47.6779, 9.1732], description: "Centro de Konstanz" },
+                    { time: "20:00-21:00", title: "Cena Tapasbar La Bodega", coords: [47.6779, 9.1732], description: "Restaurante español" },
+                    { time: "21:00-22:00", title: "Caminata Nocturna Konstanz", coords: [47.6779, 9.1732], description: "Paseo nocturno" }
+                ],
+                "Jueves 18 Sept": [
+                    { time: "8:30-9:30", title: "Desayuno", coords: [49.4478, 7.7719], description: "Kaiserslautern" },
+                    { time: "9:30-11:45", title: "Kaiserslautern Caminata + Escuela", coords: [49.4478, 7.7719], description: "Tour por la ciudad y universidad" },
+                    { time: "11:45-13:00", title: "Tren Heidelberg", coords: [49.4093, 8.6947], description: "Viaje a Heidelberg" },
+                    { time: "13:00-14:45", title: "Castillo", coords: [49.4093, 8.6947], description: "Castillo de Heidelberg" },
+                    { time: "14:45-15:45", title: "Comida", coords: [49.4093, 8.6947], description: "Almuerzo en Heidelberg" },
+                    { time: "15:45-17:45", title: "Caminata Heidelberg", coords: [49.4093, 8.6947], description: "Centro histórico" },
+                    { time: "17:45-19:30", title: "Tren Frankfurt", coords: [50.1109, 8.6821], description: "Viaje a Frankfurt" },
+                    { time: "19:30-22:00", title: "Hotel Descanso", coords: [50.1109, 8.6821], description: "Hotel en Frankfurt" }
+                ],
+                "Viernes 19 Sept": [
+                    { time: "7:15-8:30", title: "Desayuno", coords: [50.1109, 8.6821], description: "Frankfurt" },
+                    { time: "8:30-9:00", title: "Checkout", coords: [50.1109, 8.6821], description: "Salida del hotel" },
+                    { time: "9:00-12:15", title: "Aeropuerto", coords: [50.1109, 8.6821], description: "Frankfurt am Main" },
+                    { time: "12:15-24:00", title: "Lufthansa Avión Mx", coords: [19.4363, -99.0721], description: "Vuelo a México" }
+                ]
+            }
+        }
+    };
+
+    let currentTrip = 'trip1';
+    let map;
+    let markers = [];
+    let currentEventIndex = -1;
+
+    function initMap() {
+        map = L.map('map').setView(trips[currentTrip].center, trips[currentTrip].zoom);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+    }
+
+    function createCustomIcon(color = '#667eea', isActive = false) {
+        const size = isActive ? 40 : 30;
+        return L.divIcon({
+            className: 'custom-marker',
+            html: `<div style="
+                width: ${size}px;
+                height: ${size}px;
+                border-radius: 50%;
+                background: ${color};
+                border: 3px solid white;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-weight: bold;
+                font-size: ${size / 3}px;
+                ${isActive ? 'animation: pulse 2s infinite;' : ''}
+            ">📍</div>`,
+            iconSize: [size, size],
+            iconAnchor: [size / 2, size]
+        });
+    }
+
+    function loadTrip(tripId) {
+        currentTrip = tripId;
+        const trip = trips[tripId];
+
+        // Clear existing markers
+        markers.forEach(marker => map.removeLayer(marker));
+        markers = [];
+
+        // Update map view
+        map.setView(trip.center, trip.zoom);
+
+        // Load events
+        loadEvents();
+    }
+
+    function loadEvents() {
+        const eventsContainer = document.getElementById('events-container');
+        eventsContainer.innerHTML = '';
+
+        const trip = trips[currentTrip];
+        let eventIndex = 0;
+
+        Object.entries(trip.days).forEach(([dayName, events], dayIndex) => {
+            const daySection = document.createElement('div');
+            daySection.className = 'day-section';
+            daySection.style.animationDelay = `${dayIndex * 0.1}s`;
+
+            const dayHeader = document.createElement('div');
+            dayHeader.className = 'day-header';
+            dayHeader.textContent = dayName;
+            daySection.appendChild(dayHeader);
+
+            events.forEach((event, idx) => {
+                const eventItem = document.createElement('div');
+                eventItem.className = 'event-item';
+                eventItem.dataset.eventIndex = eventIndex;
+
+                eventItem.innerHTML = `
+                    <div class="event-time">${event.time}</div>
+                    <div class="event-title">${event.title}</div>
+                `;
+
+                eventItem.addEventListener('click', () => selectEvent(eventIndex));
+                daySection.appendChild(eventItem);
+
+                // Add marker to map
+                const marker = L.marker(event.coords, {
+                    icon: createCustomIcon(dayIndex % 2 === 0 ? '#667eea' : '#764ba2')
+                }).addTo(map);
+
+                marker.bindPopup(`
+                    <strong>${event.title}</strong><br>
+                    <em>${event.time}</em><br>
+                    ${event.description}
+                `);
+
+                marker.on('click', () => selectEvent(eventIndex));
+                markers.push(marker);
+
+                eventIndex++;
+            });
+
+            eventsContainer.appendChild(daySection);
+        });
+    }
+
+    function selectEvent(index) {
+        // Clear previous selection
+        document.querySelectorAll('.event-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        markers.forEach(marker => {
+            marker.setIcon(createCustomIcon(marker.options.icon.options.html.includes('667eea') ? '#667eea' : '#764ba2'));
+        });
+
+        // Update current selection
+        currentEventIndex = index;
+        const eventItem = document.querySelector(`.event-item[data-event-index="${index}"]`);
+        if (eventItem) {
+            eventItem.classList.add('active');
+        }
+
+        // Update map marker and view
+        const selectedEvent = getEventByIndex(index);
+        if (selectedEvent) {
+            const marker = markers[index];
+            if (marker) {
+                marker.setIcon(createCustomIcon(marker.options.icon.options.html.includes('667eea') ? '#667eea' : '#764ba2', true));
+                marker.openPopup();
+                map.flyTo(marker.getLatLng(), 15, { duration: 1 });
+            }
+
+            // Update details overlay
+            const details = document.getElementById('event-details');
+            document.getElementById('detail-title').textContent = selectedEvent.title;
+            document.getElementById('detail-time').textContent = selectedEvent.time;
+            document.getElementById('detail-description').textContent = selectedEvent.description;
+            details.style.display = 'block';
+        }
+    }
+
+    function getEventByIndex(index) {
+        let eventCount = 0;
+        for (const day in trips[currentTrip].days) {
+            for (const event of trips[currentTrip].days[day]) {
+                if (eventCount === index) {
+                    return event;
+                }
+                eventCount++;
+            }
+        }
+        return null;
+    }
+
+    // Add event listeners for trip buttons
+    document.querySelectorAll('.trip-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.trip-btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            loadTrip(e.target.dataset.trip);
+        });
+    });
+
+    // Initial load
+    document.addEventListener('DOMContentLoaded', () => {
+        initMap();
+        loadEvents();
+    });
+</script>
+</body>
+</html>
