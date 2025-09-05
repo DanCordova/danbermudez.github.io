@@ -218,12 +218,18 @@
         @media (max-width: 1200px) {
             .container {
                 grid-template-columns: 1fr;
-                grid-template-rows: 400px 1fr;
+                /* El cambio clave está en las filas. Usamos auto para que el contenido
+                defina la altura y le damos al contenedor del mapa una altura fija. */
+                grid-template-rows: auto auto; 
                 height: auto;
             }
 
             .sidebar {
                 max-height: 400px;
+            }
+            
+            .map-container {
+                height: 400px; /* Aquí le damos al mapa una altura fija en móviles */
             }
         }
     </style>
